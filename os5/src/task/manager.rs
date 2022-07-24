@@ -4,8 +4,10 @@
 //! Other CPU process monitoring functions are in Processor.
 
 use super::TaskControlBlock;
-use crate::config::BIG_STRIDE;
+use super::TaskStatus;
+use crate::config::*;
 use crate::sync::UPSafeCell;
+use crate::task::TaskContext;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use lazy_static::*;
@@ -14,6 +16,8 @@ pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
+// YOUR JOB: FIFO->Stride
+/// A simple FIFO scheduler.
 impl TaskManager {
     pub fn new() -> Self {
         Self {
@@ -27,27 +31,17 @@ impl TaskManager {
     /// Take a process out of the ready queue
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         // stride
-        let mut min_stride: u64 = u64::MAX;
+        let mut min_stride = self.ready_queue[idx].inner_exclusive_access().stride;
         let mut idx = 0;
-        for i in 0..self.ready_queue.len() {
-            let task = &self.ready_queue[i];
-            let inner = task.inner_exclusive_access();
-            if i == 0 {
+        for i in 1..self.ready_queue.len() {
+            let inner = self.ready_queue[i].inner_exclusive_access();
+            let cmp = inner.stride as i8 - min_stride as i8;
+            if cmp <= 0 {
                 min_stride = inner.stride;
                 idx = i;
-            } else {
-                if ((inner.stride - min_stride) as i64) < 0 {
-                    min_stride = inner.stride;
-                    idx = i;
-                }
             }
         }
-        let mut inner = self.ready_queue[idx].inner_exclusive_access();
-        let pass: u64 = BIG_STRIDE / inner.prio;
-        inner.stride += pass;
-
-        drop(inner);
-        self.ready_queue.remove(idx)        
+        self.ready_queue.remove(idx)
     }
 }
 

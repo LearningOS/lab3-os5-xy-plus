@@ -48,9 +48,9 @@ pub struct TaskControlBlockInner {
     /// It is set when active exit or execution error occurs
     pub exit_code: i32,
     /// priority
-    pub prio: u64,
+    pub prio: u8,
     /// stride
-    pub stride: u64,
+    pub stride: u8,
 }
 
 /// Simple access to its internal fields
@@ -108,8 +108,8 @@ impl TaskControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
-                    prio: 16u64,
-                    stride: 0u64,
+                    prio: 16,
+                    stride: 0,
                 })
             },
         };
@@ -177,8 +177,8 @@ impl TaskControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
-                    prio: 16u64,
-                    stride: 0u64,
+                    prio: 16,
+                    stride: 0,
                 })
             },
         });
@@ -201,7 +201,7 @@ impl TaskControlBlock {
             return -1;
         } else {
             let mut inner = self.inner_exclusive_access();
-            inner.prio = prio as u64;
+            inner.prio = prio as u8;
             return prio;
         }
     }
@@ -230,8 +230,8 @@ impl TaskControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
-                    prio: 16u64,
-                    stride: 0u64,
+                    prio: 16,
+                    stride: 0,
                 })
             },
         });
