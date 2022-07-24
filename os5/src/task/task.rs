@@ -2,8 +2,9 @@
 
 use super::TaskContext;
 use super::{pid_alloc, KernelStack, PidHandle};
+use crate::config::PAGE_SIZE;
 use crate::config::TRAP_CONTEXT;
-use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
+use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE, MapPermission};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
 use alloc::sync::{Arc, Weak};
@@ -186,6 +187,50 @@ impl TaskControlBlock {
     }
     pub fn getpid(&self) -> usize {
         self.pid.0
+    }
+    /// mmap
+    pub fn mmap(&self, start: usize, len: usize, port: usize) -> isize {
+        if start % PAGE_SIZE != 0 {
+            return -1;
+        }
+        if port & !0x7 != 0 {
+            return -1;
+        }
+        if port & 0x7 == 0 {
+            return -1;
+        }
+        let mut inner = self.inner_exclusive_access();
+        let permission = MapPermission::from_bits(((port << 1) | 16) as u8).unwrap();
+        for vpn in (start / PAGE_SIZE)..((start + len - 1) / PAGE_SIZE + 1) {
+            if inner.memory_set.is_map(vpn.into()) {
+                return -1;
+            }
+        }
+        for vpn in (start / PAGE_SIZE)..((start + len - 1) / PAGE_SIZE + 1) {
+            inner.memory_set.insert_framed_area(
+                (vpn * PAGE_SIZE).into(),
+                ((vpn + 1) * PAGE_SIZE).into(),
+                permission,
+            );
+        }
+        0
+    }
+    // munmap
+    pub fn munmap(&self, start: usize, len: usize) -> isize {
+        if start % PAGE_SIZE != 0 || len % PAGE_SIZE != 0 {
+            return -1;
+        }
+        let mut inner = self.inner_exclusive_access();
+
+        for vpn in (start / PAGE_SIZE)..((start + len - 1) / PAGE_SIZE + 1) {
+            if !inner.memory_set.is_map(vpn.into()) {
+                return -1;
+            }
+        }
+        for vpn in (start / PAGE_SIZE)..((start + len - 1) / PAGE_SIZE + 1) {
+            inner.memory_set.remove_area_with_start_vpn(vpn.into());
+        }
+        0
     }
 }
 
