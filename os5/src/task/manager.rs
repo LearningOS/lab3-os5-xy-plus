@@ -31,8 +31,8 @@ impl TaskManager {
     /// Take a process out of the ready queue
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         // stride
-        let mut min_stride = self.ready_queue[idx].inner_exclusive_access().stride;
         let mut idx = 0;
+        let mut min_stride = self.ready_queue[idx].inner_exclusive_access().stride;
         for i in 1..self.ready_queue.len() {
             let inner = self.ready_queue[i].inner_exclusive_access();
             let cmp = inner.stride as i8 - min_stride as i8;
